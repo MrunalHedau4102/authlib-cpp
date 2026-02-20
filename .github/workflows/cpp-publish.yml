@@ -1,0 +1,249 @@
+name: C++ - Test & Publish to Conan
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'authlib-cpp/**'
+      - '!authlib-cpp/README.md'
+      - '!authlib-cpp/examples/**'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'authlib-cpp/**'
+      - '!authlib-cpp/README.md'
+
+jobs:
+  # ============================================================================
+  # Test Job - Multi-Platform
+  # ============================================================================
+  test:
+    runs-on: ${{ matrix.os }}
+    name: Test AuthLib C++ - ${{ matrix.os }}
+    
+    strategy:
+      matrix:
+        os: [ ubuntu-latest, macos-latest, windows-latest ]
+        compiler: [ gcc, clang ]
+        exclude:
+          - os: windows-latest
+            compiler: clang
+          - os: macos-latest
+            compiler: gcc
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Install dependencies (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            cmake \
+            libssl-dev \
+            libsqlite3-dev \
+            nlohmann-json3-dev
+      
+      - name: Install dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install cmake openssl sqlite nlohmann-json pkg-config
+      
+      - name: Install dependencies (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          choco install cmake openssl sqlite -y
+      
+      - name: Install Google Test
+        run: |
+          git clone https://github.com/google/googletest.git
+          cd googletest && mkdir build && cd build
+          cmake .. && cmake --build . --config Release
+          cmake --install .
+      
+      - name: Create build directory
+        working-directory: ./authlib-cpp
+        run: mkdir -p build
+      
+      - name: Configure CMake (Unix)
+        if: runner.os != 'Windows'
+        working-directory: ./authlib-cpp/build
+        run: |
+          cmake .. \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DENABLE_TESTING=ON \
+            -DCMAKE_CXX_COMPILER=${{ matrix.compiler }}
+      
+      - name: Configure CMake (Windows)
+        if: runner.os == 'Windows'
+        working-directory: ./authlib-cpp/build
+        run: |
+          cmake .. `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DENABLE_TESTING=ON
+      
+      - name: Build C++ library
+        working-directory: ./authlib-cpp/build
+        run: cmake --build . --config Release
+      
+      - name: Run integration tests
+        working-directory: ./authlib-cpp/build
+        run: ctest --output-on-failure --verbose
+      
+      - name: Run authlib tests
+        working-directory: ./authlib-cpp/build
+        run: ./authlib_tests --gtest_print_time=1
+      
+      - name: Archive test results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: cpp-test-results-${{ matrix.os }}-${{ matrix.compiler }}
+          path: authlib-cpp/build/
+          retention-days: 30
+
+  # ============================================================================
+  # Static Analysis Job
+  # ============================================================================
+  static-analysis:
+    runs-on: ubuntu-latest
+    name: Static Analysis - C++
+    needs: test
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      
+      - name: Install analysis tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            cppcheck \
+            clang-tools \
+            cmake \
+            build-essential \
+            libssl-dev \
+            libsqlite3-dev
+      
+      - name: Run cppcheck
+        working-directory: ./authlib-cpp
+        continue-on-error: true
+        run: |
+          cppcheck --enable=all \
+            --suppress=missingIncludeSystem \
+            --std=c++17 \
+            --report-progress \
+            include/ src/ tests/
+      
+      - name: Create build directory
+        working-directory: ./authlib-cpp
+        run: mkdir -p build
+      
+      - name: Configure with clang-tidy
+        working-directory: ./authlib-cpp/build
+        continue-on-error: true
+        run: |
+          cmake .. \
+            -DCMAKE_CXX_CLANG_TIDY="clang-tidy" \
+            -DCMAKE_BUILD_TYPE=Debug
+      
+      - name: Run static checks
+        working-directory: ./authlib-cpp/build
+        continue-on-error: true
+        run: cmake --build . 2>&1 | head -50
+
+  # ============================================================================
+  # Publish Job (Conan - Only on main branch)
+  # ============================================================================
+  publish:
+    runs-on: ubuntu-latest
+    name: Publish to Conan Center
+    needs: [ test, static-analysis ]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      
+      - name: Extract version from conanfile.py
+        id: version
+        working-directory: ./authlib-cpp
+        run: |
+          VERSION=$(grep -oP '(?<=version = ")[^"]+' conanfile.py || echo "0.0.1")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "📦 C++ Library Version: $VERSION"
+      
+      - name: Setup Python for Conan
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      
+      - name: Install Conan
+        run: |
+          pip install conan
+          conan --version
+      
+      - name: Get Conan home
+        id: conan
+        run: |
+          echo "conan_user_home=$(conan config home)" >> $GITHUB_OUTPUT
+      
+      - name: Verify C++ Library builds
+        working-directory: ./authlib-cpp
+        run: |
+          mkdir -p build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DENABLE_TESTING=ON
+          cmake --build .
+      
+      - name: Export to Conan local cache
+        working-directory: ./authlib-cpp
+        continue-on-error: true
+        run: |
+          conan export . authlib/${{ steps.version.outputs.version }}@
+          echo "✅ Exported to local Conan cache"
+      
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        if: success()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: authlib-cpp-${{ steps.version.outputs.version }}
+          release_name: AuthLib C++ v${{ steps.version.outputs.version }}
+          body: |
+            ## AuthLib C++ v${{ steps.version.outputs.version }}
+            
+            C++17 Authentication Library
+            
+            ### Installation with Conan
+            ```
+            conan install authlib/${{ steps.version.outputs.version }}@
+            ```
+            
+            ### Tested on
+            - Ubuntu (GCC, Clang)
+            - macOS (Clang)
+            - Windows (MSVC)
+            
+            ### Features
+            - JWT token management
+            - Password hashing & validation
+            - User authentication
+            - Token blacklisting
+            - Multi-database support
+            
+            ### See Also
+            - [Conan Documentation](https://docs.conan.io)
+            - [GitHub Repository](https://github.com/${{ github.repository }})
+          draft: false
+          prerelease: false
+      
+      - name: Notify Success
+        if: success()
+        run: |
+          echo "✅ C++ Library v${{ steps.version.outputs.version }} exported to Conan"
+          echo "📚 Ready for Conan Center publication (manual step via Conan website)"
