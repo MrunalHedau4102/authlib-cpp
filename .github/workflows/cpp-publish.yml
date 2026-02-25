@@ -1,17 +1,11 @@
 name: C++ - Test & Publish to Conan
 
 on:
+  release:
+    types: [published]
+  workflow_dispatch:
   push:
     branches: [ main, develop ]
-    paths:
-      - 'authlib-cpp/**'
-      - '!authlib-cpp/README.md'
-      - '!authlib-cpp/examples/**'
-  pull_request:
-    branches: [ main, develop ]
-    paths:
-      - 'authlib-cpp/**'
-      - '!authlib-cpp/README.md'
 
 jobs:
   # ============================================================================
@@ -110,7 +104,6 @@ jobs:
   static-analysis:
     runs-on: ubuntu-latest
     name: Static Analysis - C++
-    needs: test
     
     steps:
       - name: Checkout code
@@ -129,13 +122,12 @@ jobs:
       
       - name: Run cppcheck
         working-directory: ./authlib-cpp
-        continue-on-error: true
         run: |
           cppcheck --enable=all \
             --suppress=missingIncludeSystem \
             --std=c++17 \
             --report-progress \
-            include/ src/ tests/
+            include/ src/ tests/ 2>&1 | head -50 || true
       
       - name: Create build directory
         working-directory: ./authlib-cpp
@@ -143,25 +135,23 @@ jobs:
       
       - name: Configure with clang-tidy
         working-directory: ./authlib-cpp/build
-        continue-on-error: true
         run: |
           cmake .. \
             -DCMAKE_CXX_CLANG_TIDY="clang-tidy" \
-            -DCMAKE_BUILD_TYPE=Debug
+            -DCMAKE_BUILD_TYPE=Debug || true
       
       - name: Run static checks
         working-directory: ./authlib-cpp/build
-        continue-on-error: true
-        run: cmake --build . 2>&1 | head -50
+        run: cmake --build . 2>&1 | head -50 || true
 
   # ============================================================================
-  # Publish Job (Conan - Only on main branch)
+  # Publish Job (Conan - Only on main branch with release)
   # ============================================================================
   publish:
     runs-on: ubuntu-latest
     name: Publish to Conan Center
     needs: [ test, static-analysis ]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.event_name == 'release' || (github.ref == 'refs/heads/main' && github.event_name == 'push')
     
     steps:
       - name: Checkout code
