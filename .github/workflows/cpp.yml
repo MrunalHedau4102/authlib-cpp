@@ -114,7 +114,6 @@ jobs:
             build-essential
       
       - name: Run cppcheck
-        working-directory: ./authlib-cpp
         continue-on-error: true
         run: |
           cppcheck --enable=all \
@@ -125,11 +124,9 @@ jobs:
         run: sudo apt-get install -y clang-tidy
       
       - name: Create build directory
-        working-directory: ./authlib-cpp
         run: mkdir -p build
       
       - name: Configure with clang-tidy
-        working-directory: ./authlib-cpp/build
         continue-on-error: true
         run: |
           cmake .. \
@@ -137,5 +134,4 @@ jobs:
             -DCMAKE_BUILD_TYPE=Debug || true
       
       - name: Run static analysis
-        working-directory: ./authlib-cpp/build
         run: cmake --build . 2>&1 | head -100 || true
