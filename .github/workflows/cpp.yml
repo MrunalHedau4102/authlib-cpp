@@ -35,16 +35,33 @@ jobs:
             libssl-dev \
             libsqlite3-dev \
             nlohmann-json3-dev \
+            libboost-all-dev \
             clang
+          # jwt-cpp is a header-only library - install from source
+          cd /tmp && git clone https://github.com/Thalhammer/jwt-cpp.git && \
+          mkdir jwt-cpp/build && cd jwt-cpp/build && \
+          cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local && make install
 
       # ---------------- MAC ----------------
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
         run: |
-          brew install openssl sqlite nlohmann-json pkg-config
+          brew install openssl sqlite nlohmann-json pkg-config boost
+          # jwt-cpp is a header-only library - install from source
+          cd /tmp && git clone https://github.com/Thalhammer/jwt-cpp.git && \
+          mkdir jwt-cpp/build && cd jwt-cpp/build && \
+          cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local && make install
 
       # ❌ DO NOT install cmake on Windows
       # It is already preinstalled
+
+      # ---------------- WINDOWS ----------------
+      - name: Install dependencies (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          vcpkg integrate install
+          vcpkg install nlohmann-json:x64-windows openssl:x64-windows sqlite3:x64-windows boost:x64-windows jwt-cpp:x64-windows
+        shell: pwsh
 
       # ---------------- SET COMPILER ----------------
       - name: Set compiler (Linux/macOS)
@@ -59,7 +76,17 @@ jobs:
           fi
 
       # ---------------- CONFIGURE ----------------
-      - name: Configure
+      - name: Configure (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cmake -S . -B build `
+            -DCMAKE_TOOLCHAIN_FILE="C:\vcpkg\scripts\buildsystems\vcpkg.cmake" `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DENABLE_TESTING=ON
+        shell: pwsh
+
+      - name: Configure (Unix)
+        if: runner.os != 'Windows'
         run: |
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=Release \
@@ -104,4 +131,4 @@ jobs:
           cppcheck --enable=all \
             --suppress=missingIncludeSystem \
             --std=c++17 \
-            authlib-cpp/include/ authlib-cpp/src/ 2>&1 | head -50 || true
+            include/ src/ 2>&1 | head -50 || true
