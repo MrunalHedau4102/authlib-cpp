@@ -13,9 +13,7 @@ target_link_libraries(authlib_tests
         gtest_main
 )
 
-# Enable testing
-enable_testing()
-
+# Add test (enable_testing is called in parent CMakeLists.txt)
 add_test(
     NAME authlib_integration_tests
     COMMAND authlib_tests
