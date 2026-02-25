@@ -27,18 +27,19 @@ FetchContent_MakeAvailable(jwt_cpp)
 
 # GoogleTest - only configure if testing is enabled
 if(ENABLE_TESTING OR BUILD_TESTING)
+  # Prevent GoogleTest from creating install rules BEFORE declaring it
+  set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
+  set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
+  set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+  
   FetchContent_Declare(
     googletest
-    URL https://github.com/google/googletest/archive/refs/heads/main.zip
+    URL https://github.com/google/googletest/archive/refs/tags/v1.14.0.zip
   )
-  # Prevent overriding parent compiler/linker settings
-  set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-  # Prevent GoogleTest from creating install rules
-  set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
-  # Don't build GoogleTest tests
-  set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
-  set(BUILD_GTEST ON CACHE BOOL "" FORCE)
   FetchContent_MakeAvailable(googletest)
+  
+  # Disable install for googletest targets
+  set_target_properties(gtest gtest_main PROPERTIES EXCLUDE_FROM_ALL TRUE)
 endif()
 
 # ------------------------
