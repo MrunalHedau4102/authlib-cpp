@@ -37,20 +37,12 @@ jobs:
             nlohmann-json3-dev \
             libboost-all-dev \
             clang
-          # jwt-cpp is a header-only library - install from source
-          cd /tmp && git clone https://github.com/Thalhammer/jwt-cpp.git && \
-          mkdir jwt-cpp/build && cd jwt-cpp/build && \
-          cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local && make install
 
       # ---------------- MAC ----------------
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
         run: |
           brew install openssl sqlite nlohmann-json pkg-config boost
-          # jwt-cpp is a header-only library - install from source
-          cd /tmp && git clone https://github.com/Thalhammer/jwt-cpp.git && \
-          mkdir jwt-cpp/build && cd jwt-cpp/build && \
-          cmake .. -DCMAKE_INSTALL_PREFIX=/usr/local && make install
 
       # ❌ DO NOT install cmake on Windows
       # It is already preinstalled
@@ -63,14 +55,14 @@ jobs:
           if (Test-Path $VcpkgPath) {
             cd $VcpkgPath
             .\vcpkg integrate install
-            .\vcpkg install nlohmann-json:x64-windows openssl:x64-windows sqlite3:x64-windows boost:x64-windows jwt-cpp:x64-windows
+            .\vcpkg install nlohmann-json:x64-windows openssl:x64-windows sqlite3:x64-windows boost:x64-windows
           } else {
             echo "vcpkg not found, attempting to install..."
             git clone https://github.com/Microsoft/vcpkg.git C:\vcpkg
             cd C:\vcpkg
             .\bootstrap-vcpkg.bat
             .\vcpkg integrate install
-            .\vcpkg install nlohmann-json:x64-windows openssl:x64-windows sqlite3:x64-windows boost:x64-windows jwt-cpp:x64-windows
+            .\vcpkg install nlohmann-json:x64-windows openssl:x64-windows sqlite3:x64-windows boost:x64-windows
           }
         shell: pwsh
 

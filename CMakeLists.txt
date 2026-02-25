@@ -12,11 +12,18 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 # Dependencies
 # ------------------------
 find_package(nlohmann_json 3.2.0 REQUIRED)
-find_package(jwt-cpp REQUIRED)
 find_package(OpenSSL REQUIRED)
 find_package(SQLite3 REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system)
 find_package(PostgreSQL)
+
+# jwt-cpp (header-only library - fetch from GitHub)
+include(FetchContent)
+FetchContent_Declare(
+  jwt_cpp
+  URL https://github.com/Thalhammer/jwt-cpp/archive/refs/tags/v0.9.1.zip
+)
+FetchContent_MakeAvailable(jwt_cpp)
 
 # ------------------------
 # Source Files
@@ -47,7 +54,7 @@ target_include_directories(authlib
 
 target_link_libraries(authlib
     PUBLIC nlohmann_json::nlohmann_json
-    PRIVATE jwt-cpp::jwt-cpp
+    PUBLIC jwt_cpp    
     PRIVATE OpenSSL::Crypto
     PRIVATE SQLite::SQLite3
     PRIVATE Boost::system
