@@ -82,6 +82,9 @@ FetchContent_Declare(
 # Prevent overriding parent compiler/linker settings
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 
+# Prevent GoogleTest from installing to system directories
+set(INSTALL_GTEST OFF)
+
 FetchContent_MakeAvailable(googletest)
 
 enable_testing()

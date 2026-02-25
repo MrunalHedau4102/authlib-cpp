@@ -60,7 +60,6 @@ jobs:
 
       # ---------------- CONFIGURE ----------------
       - name: Configure
-        working-directory: ./authlib-cpp
         run: |
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=Release \
@@ -68,12 +67,10 @@ jobs:
 
       # ---------------- BUILD ----------------
       - name: Build
-        working-directory: ./authlib-cpp
         run: cmake --build build --config Release -- -j2
 
       # ---------------- TEST ----------------
       - name: Run tests
-        working-directory: ./authlib-cpp
         run: ctest --test-dir build --output-on-failure
 
       # ---------------- ARTIFACT ----------------
@@ -82,7 +79,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: cpp-test-results-${{ matrix.os }}-${{ matrix.compiler }}
-          path: authlib-cpp/build
+          path: build
           retention-days: 7
 
 
