@@ -59,8 +59,19 @@ jobs:
       - name: Install dependencies (Windows)
         if: runner.os == 'Windows'
         run: |
-          vcpkg integrate install
-          vcpkg install nlohmann-json:x64-windows openssl:x64-windows sqlite3:x64-windows boost:x64-windows jwt-cpp:x64-windows
+          $VcpkgPath = "C:\vcpkg"
+          if (Test-Path $VcpkgPath) {
+            cd $VcpkgPath
+            .\vcpkg integrate install
+            .\vcpkg install nlohmann-json:x64-windows openssl:x64-windows sqlite3:x64-windows boost:x64-windows jwt-cpp:x64-windows
+          } else {
+            echo "vcpkg not found, attempting to install..."
+            git clone https://github.com/Microsoft/vcpkg.git C:\vcpkg
+            cd C:\vcpkg
+            .\bootstrap-vcpkg.bat
+            .\vcpkg integrate install
+            .\vcpkg install nlohmann-json:x64-windows openssl:x64-windows sqlite3:x64-windows boost:x64-windows jwt-cpp:x64-windows
+          }
         shell: pwsh
 
       # ---------------- SET COMPILER ----------------
@@ -79,8 +90,9 @@ jobs:
       - name: Configure (Windows)
         if: runner.os == 'Windows'
         run: |
+          $VcpkgToolchain = "C:\vcpkg\scripts\buildsystems\vcpkg.cmake"
           cmake -S . -B build `
-            -DCMAKE_TOOLCHAIN_FILE="C:\vcpkg\scripts\buildsystems\vcpkg.cmake" `
+            -DCMAKE_TOOLCHAIN_FILE="$VcpkgToolchain" `
             -DCMAKE_BUILD_TYPE=Release `
             -DENABLE_TESTING=ON
         shell: pwsh
