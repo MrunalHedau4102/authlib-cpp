@@ -29,6 +29,7 @@ FetchContent_MakeAvailable(jwt_cpp)
 if(ENABLE_TESTING OR BUILD_TESTING)
   # Prevent GoogleTest from creating install rules BEFORE declaring it
   set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
+  set(INSTALL_GMOCK OFF CACHE BOOL "" FORCE)
   set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
   set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
   

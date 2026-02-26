@@ -86,6 +86,7 @@ jobs:
           cmake -S . -B build `
             -DCMAKE_TOOLCHAIN_FILE="$VcpkgToolchain" `
             -DCMAKE_BUILD_TYPE=Release `
+            -DCMAKE_SKIP_INSTALL_RULES=ON `
             -DENABLE_TESTING=ON
         shell: pwsh
 
@@ -94,6 +95,7 @@ jobs:
         run: |
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_SKIP_INSTALL_RULES=ON \
             -DENABLE_TESTING=ON
 
       # ---------------- BUILD ----------------
